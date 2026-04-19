@@ -256,15 +256,26 @@ const destColors = { NOW:'dot-now', SOON:'dot-soon', LATER:'dot-later', ROUTINES
 const destBadge = { NOW:'dest-now', SOON:'dest-soon', LATER:'dest-later', ROUTINES:'dest-routines', NOT_TASK:'dest-nontask' };
 const destLabel = { NOW:'NOW', SOON:'SOON', LATER:'LATER', ROUTINES:'ROUTINES', NOT_TASK:'Not a task' };
 
+async function todoistFetch(url, token) {
+  const encoded = encodeURIComponent(url + '|Bearer ' + token);
+  const proxy = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}&headers=${encodeURIComponent(JSON.stringify({ Authorization: 'Bearer ' + token }))}`;
+  const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`, {
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  });
+  if (!res.ok) throw new Error(`Proxy error ${res.status}`);
+  const wrapper = await res.json();
+  if (!wrapper.contents) throw new Error('Could not reach Todoist. Check your API token.');
+  return JSON.parse(wrapper.contents);
+}
+
 async function fetchInbox(token) {
   showStatus('Loading your inbox…');
-  const [tasksRes, projectsRes] = await Promise.all([
-    fetch('https://api.todoist.com/rest/v2/tasks', { headers: { Authorization: `Bearer ${token}` } }),
-    fetch('https://api.todoist.com/rest/v2/projects', { headers: { Authorization: `Bearer ${token}` } })
+  const tasksUrl = `https://api.todoist.com/rest/v2/tasks?token=${token}`;
+  const projectsUrl = `https://api.todoist.com/rest/v2/projects?token=${token}`;
+  const [tasks, projects] = await Promise.all([
+    todoistFetch(tasksUrl, token),
+    todoistFetch(projectsUrl, token)
   ]);
-  if (!tasksRes.ok) throw new Error(`Todoist error ${tasksRes.status}: check your API token.`);
-  const tasks = await tasksRes.json();
-  const projects = await projectsRes.json();
   const inboxProject = projects.find(p => p.is_inbox_project);
   const inboxId = inboxProject ? inboxProject.id : null;
   return tasks.filter(t => t.project_id === inboxId);
