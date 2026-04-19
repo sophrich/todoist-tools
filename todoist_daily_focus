@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Daily Focus</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: #fff; color: #111; padding: 1.5rem; }
+  h2.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+  .header { display: flex; align-items: center; gap: 10px; margin-bottom: 1.5rem; }
+  .logo { width: 28px; height: 28px; background: #E44332; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .logo svg { width: 16px; height: 16px; fill: white; }
+  .header-text h1 { font-size: 17px; font-weight: 500; line-height: 1.2; }
+  .header-text p { font-size: 13px; color: #666; }
+  .token-section { background: #f5f5f5; border-radius: 12px; padding: 1.25rem; margin-bottom: 1.25rem; border: 0.5px solid rgba(0,0,0,0.12); }
+  .token-label { font-size: 13px; font-weight: 500; margin-bottom: 8px; }
+  .token-row { display: flex; gap: 8px; }
+  .token-row input { flex: 1; font-size: 13px; font-family: monospace; padding: 8px 10px; border: 0.5px solid rgba(0,0,0,0.2); border-radius: 8px; background: #fff; color: #111; outline: none; }
+  .token-row input:focus { box-shadow: 0 0 0 2px rgba(99,83,183,0.25); border-color: #7F77DD; }
+  .btn { padding: 8px 16px; border-radius: 8px; border: 0.5px solid rgba(0,0,0,0.2); background: #fff; color: #111; font-size: 13px; cursor: pointer; white-space: nowrap; transition: background 0.15s; }
+  .btn:hover { background: #f0f0f0; }
+  .btn:active { transform: scale(0.98); }
+  .btn-primary { background: #534AB7; color: #fff; border-color: #534AB7; }
+  .btn-primary:hover { background: #3C3489; border-color: #3C3489; }
+  .hint { font-size: 12px; color: #888; margin-top: 8px; }
+  .hint a { color: #534AB7; text-decoration: none; }
+  .section-label { font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; color: #888; margin-bottom: 10px; }
+  .task-card { background: #fff; border: 0.5px solid rgba(0,0,0,0.12); border-radius: 12px; padding: 0.9rem 1rem; margin-bottom: 8px; display: flex; align-items: flex-start; gap: 10px; }
+  .task-num { width: 22px; height: 22px; border-radius: 50%; background: #f5f5f5; border: 0.5px solid rgba(0,0,0,0.15); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 500; color: #888; flex-shrink: 0; margin-top: 1px; }
+  .task-body { flex: 1; min-width: 0; }
+  .task-name { font-size: 14px; font-weight: 500; line-height: 1.4; word-break: break-word; }
+  .task-reason { font-size: 13px; color: #666; line-height: 1.5; margin-top: 4px; }
+  .task-meta { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+  .badge { font-size: 11px; padding: 2px 8px; border-radius: 999px; display: inline-flex; align-items: center; gap: 4px; border: 0.5px solid; }
+  .badge-p1 { background: #FCEBEB; color: #791F1F; border-color: #F09595; }
+  .badge-p2 { background: #FAEEDA; color: #633806; border-color: #FAC775; }
+  .badge-p3 { background: #E6F1FB; color: #0C447C; border-color: #85B7EB; }
+  .badge-p4 { background: #f5f5f5; color: #888; border-color: rgba(0,0,0,0.2); }
+  .badge-due { background: #EEEDFE; color: #3C3489; border-color: #AFA9EC; }
+  .badge-project { background: #E1F5EE; color: #085041; border-color: #5DCAA5; }
+  .summary-card { background: #EEEDFE; border: 0.5px solid #AFA9EC; border-radius: 12px; padding: 0.9rem 1rem; margin-bottom: 1.25rem; }
+  .summary-card p { font-size: 13px; color: #3C3489; line-height: 1.6; }
+  .status { font-size: 13px; color: #888; padding: 0.75rem 0; display: flex; align-items: center; gap: 8px; }
+  .spinner { width: 14px; height: 14px; border: 2px solid rgba(0,0,0,0.15); border-top-color: #534AB7; border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .error { background: #FCEBEB; border: 0.5px solid #F09595; border-radius: 8px; padding: 0.75rem 1rem; font-size: 13px; color: #791F1F; margin-bottom: 1rem; }
+  .actions { display: flex; gap: 8px; margin-top: 1rem; flex-wrap: wrap; }
+  .context-row { display: flex; gap: 8px; margin-bottom: 1rem; }
+  .context-input { flex: 1; font-size: 13px; padding: 8px 10px; border: 0.5px solid rgba(0,0,0,0.2); border-radius: 8px; background: #fff; color: #111; outline: none; }
+  .context-input:focus { box-shadow: 0 0 0 2px rgba(99,83,183,0.25); border-color: #7F77DD; }
+  .context-label { font-size: 12px; color: #888; margin-bottom: 6px; }
+</style>
+</head>
+<body>
+<h2 class="sr-only">Daily Focus: AI-powered Todoist task prioritizer.</h2>
+
+<div class="header">
+  <div class="logo">
+    <svg viewBox="0 0 24 24"><path d="M21.2 3H2.8A1.8 1.8 0 001 4.8v14.4A1.8 1.8 0 002.8 21h18.4A1.8 1.8 0 0023 19.2V4.8A1.8 1.8 0 0021.2 3zM9.5 16.5l-4-4 1.4-1.4 2.6 2.6 5.6-5.6 1.4 1.4-7 7z"/></svg>
+  </div>
+  <div class="header-text">
+    <h1>Daily Focus</h1>
+    <p>AI-curated tasks from Todoist</p>
+  </div>
+</div>
+
+<div class="token-section">
+  <div class="token-label">Todoist API token</div>
+  <div class="token-row">
+    <input type="password" id="tokenInput" placeholder="Paste your API token here…" autocomplete="off" />
+    <button class="btn btn-primary" id="fetchBtn">Fetch tasks ↗</button>
+  </div>
+  <p class="hint">Find yours at <a href="https://todoist.com/prefs/integrations" target="_blank">Todoist → Settings → Integrations</a></p>
+</div>
+
+<div id="contextBlock" style="display:none">
+  <div class="context-label">Any context for today? (optional)</div>
+  <div class="context-row">
+    <input type="text" class="context-input" id="contextInput" placeholder="e.g. I have 2 hours free, focus on work projects…" />
+    <button class="btn btn-primary" id="prioritizeBtn">Pick my focus ↗</button>
+  </div>
+</div>
+
+<div id="statusEl" style="display:none" class="status"><div class="spinner"></div><span id="statusText">Loading…</span></div>
+<div id="errorEl" style="display:none" class="error"></div>
+<div id="resultBlock" style="display:none">
+  <div id="summaryEl"></div>
+  <div class="section-label">Your focus list</div>
+  <div id="taskList"></div>
+  <div class="actions">
+    <button class="btn" id="regenerateBtn">Regenerate</button>
+    <button class="btn" id="resetBtn">Change token</button>
+  </div>
+</div>
+
+<script>
+let allTasks = [];
+let projectMap = {};
+
+const tokenInput = document.getElementById('tokenInput');
+const fetchBtn = document.getElementById('fetchBtn');
+const prioritizeBtn = document.getElementById('prioritizeBtn');
+const regenerateBtn = document.getElementById('regenerateBtn');
+const resetBtn = document.getElementById('resetBtn');
+const statusEl = document.getElementById('statusEl');
+const statusText = document.getElementById('statusText');
+const errorEl = document.getElementById('errorEl');
+const resultBlock = document.getElementById('resultBlock');
+const contextBlock = document.getElementById('contextBlock');
+const taskList = document.getElementById('taskList');
+const summaryEl = document.getElementById('summaryEl');
+const contextInput = document.getElementById('contextInput');
+
+function showStatus(msg) { statusEl.style.display='flex'; statusText.textContent=msg; errorEl.style.display='none'; }
+function hideStatus() { statusEl.style.display='none'; }
+function showError(msg) { errorEl.textContent=msg; errorEl.style.display='block'; hideStatus(); }
+
+const priorityLabel = { 4:'P1', 3:'P2', 2:'P3', 1:'P4' };
+const priorityBadge = { 4:'badge-p1', 3:'badge-p2', 2:'badge-p3', 1:'badge-p4' };
+
+async function fetchTodoist(token) {
+  showStatus('Fetching your tasks from Todoist…');
+  const [tasksRes, projectsRes] = await Promise.all([
+    fetch('https://api.todoist.com/rest/v2/tasks', { headers: { Authorization: `Bearer ${token}` } }),
+    fetch('https://api.todoist.com/rest/v2/projects', { headers: { Authorization: `Bearer ${token}` } })
+  ]);
+  if (!tasksRes.ok) throw new Error(`Todoist error ${tasksRes.status}: check your API token.`);
+  const tasks = await tasksRes.json();
+  const projects = await projectsRes.json();
+  projectMap = {};
+  projects.forEach(p => { projectMap[p.id] = p.name; });
+  return tasks;
+}
+
+async function runAI(tasks, context) {
+  showStatus('Asking Claude to pick your focus tasks…');
+  const today = new Date().toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' });
+  const taskSummary = tasks.slice(0,80).map((t,i) => {
+    const proj = projectMap[t.project_id] || 'Inbox';
+    const due = t.due ? t.due.date : 'no due date';
+    const pri = priorityLabel[t.priority] || 'P4';
+    return `${i+1}. [${pri}] "${t.content}" | project: ${proj} | due: ${due}`;
+  }).join('\n');
+  const userContext = context ? `\nUser context: ${context}` : '';
+  const prompt = `Today is ${today}.${userContext}\n\nHere are the user's open Todoist tasks (up to 80, in Todoist order):\n${taskSummary}\n\nYour job: pick the 3–5 most important tasks for the user to focus on TODAY. Prioritize by:\n1. Explicit P1/P2 priority flags\n2. Due today or overdue\n3. Strategic importance / momentum\n4. Balance (don't pick 5 tasks from the same project)\n\nRespond ONLY with a JSON object. No markdown, no preamble, no backticks. Format:\n{\n  "summary": "One sentence framing their day.",\n  "tasks": [\n    { "index": <original 1-based index>, "reason": "Short, direct reason this task matters today." },\n    ...\n  ]\n}`;
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1000, messages: [{ role: 'user', content: prompt }] })
+  });
+  if (!res.ok) throw new Error(`Claude API error ${res.status}`);
+  const data = await res.json();
+  const raw = data.content.map(b => b.text || '').join('').trim();
+  return JSON.parse(raw);
+}
+
+function renderTasks(result, tasks) {
+  taskList.innerHTML = '';
+  summaryEl.innerHTML = '';
+  if (result.summary) summaryEl.innerHTML = `<div class="summary-card"><p>${result.summary}</p></div>`;
+  result.tasks.forEach((item, idx) => {
+    const task = tasks[item.index - 1];
+    if (!task) return;
+    const proj = projectMap[task.project_id] || 'Inbox';
+    const pri = priorityLabel[task.priority] || 'P4';
+    const priClass = priorityBadge[task.priority] || 'badge-p4';
+    const dueStr = task.due ? task.due.date : null;
+    const card = document.createElement('div');
+    card.className = 'task-card';
+    card.innerHTML = `<div class="task-num">${idx+1}</div><div class="task-body"><div class="task-name">${task.content}</div><div class="task-reason">${item.reason}</div><div class="task-meta"><span class="badge ${priClass}">${pri}</span>${dueStr ? `<span class="badge badge-due">Due ${dueStr}</span>` : ''}<span class="badge badge-project">${proj}</span></div></div>`;
+    taskList.appendChild(card);
+  });
+  resultBlock.style.display = 'block';
+  contextBlock.style.display = 'none';
+}
+
+async function go(token, context) {
+  errorEl.style.display = 'none';
+  resultBlock.style.display = 'none';
+  try {
+    if (!allTasks.length) allTasks = await fetchTodoist(token);
+    const result = await runAI(allTasks, context);
+    hideStatus();
+    renderTasks(result, allTasks);
+  } catch(e) { hideStatus(); showError(e.message || 'Something went wrong.'); }
+}
+
+fetchBtn.addEventListener('click', async () => {
+  const token = tokenInput.value.trim();
+  if (!token) { showError('Please enter your Todoist API token.'); return; }
+  allTasks = [];
+  errorEl.style.display = 'none';
+  resultBlock.style.display = 'none';
+  try {
+    allTasks = await fetchTodoist(token);
+    hideStatus();
+    contextBlock.style.display = 'block';
+    prioritizeBtn.focus();
+  } catch(e) { hideStatus(); showError(e.message || 'Could not connect to Todoist.'); }
+});
+
+prioritizeBtn.addEventListener('click', () => go(tokenInput.value.trim(), contextInput.value.trim()));
+contextInput.addEventListener('keydown', e => { if (e.key === 'Enter') prioritizeBtn.click(); });
+regenerateBtn.addEventListener('click', () => { allTasks = []; go(tokenInput.value.trim(), contextInput.value.trim()); });
+resetBtn.addEventListener('click', () => { allTasks = []; tokenInput.value = ''; resultBlock.style.display='none'; contextBlock.style.display='none'; errorEl.style.display='none'; });
+</script>
+</body>
+</html>
