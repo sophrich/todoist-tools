@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Inbox Triage</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: #fff; color: #111; padding: 1.5rem; }
+  h2.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+
+  .header { display: flex; align-items: center; gap: 10px; margin-bottom: 1.5rem; }
+  .logo { width: 28px; height: 28px; background: #E44332; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .logo svg { width: 16px; height: 16px; fill: white; }
+  .header-text h1 { font-size: 17px; font-weight: 500; line-height: 1.2; }
+  .header-text p { font-size: 13px; color: #666; }
+
+  .token-section { background: #f5f5f5; border-radius: 12px; padding: 1.25rem; margin-bottom: 1.25rem; border: 0.5px solid rgba(0,0,0,0.12); }
+  .token-label { font-size: 13px; font-weight: 500; margin-bottom: 8px; }
+  .token-row { display: flex; gap: 8px; }
+  .token-row input { flex: 1; font-size: 13px; font-family: monospace; padding: 8px 10px; border: 0.5px solid rgba(0,0,0,0.2); border-radius: 8px; background: #fff; color: #111; outline: none; }
+  .token-row input:focus { box-shadow: 0 0 0 2px rgba(99,83,183,0.25); border-color: #7F77DD; }
+  .hint { font-size: 12px; color: #888; margin-top: 8px; }
+  .hint a { color: #534AB7; text-decoration: none; }
+
+  .btn { padding: 8px 16px; border-radius: 8px; border: 0.5px solid rgba(0,0,0,0.2); background: #fff; color: #111; font-size: 13px; cursor: pointer; white-space: nowrap; transition: background 0.15s; }
+  .btn:hover { background: #f0f0f0; }
+  .btn:active { transform: scale(0.98); }
+  .btn-primary { background: #534AB7; color: #fff; border-color: #534AB7; }
+  .btn-primary:hover { background: #3C3489; border-color: #3C3489; }
+  .btn-danger { background: #fff; color: #791F1F; border-color: #F09595; }
+  .btn-danger:hover { background: #FCEBEB; }
+  .btn-success { background: #fff; color: #085041; border-color: #5DCAA5; }
+  .btn-success:hover { background: #E1F5EE; }
+  .btn-sm { padding: 5px 12px; font-size: 12px; }
+
+  .status { font-size: 13px; color: #888; padding: 0.75rem 0; display: flex; align-items: center; gap: 8px; }
+  .spinner { width: 14px; height: 14px; border: 2px solid rgba(0,0,0,0.15); border-top-color: #534AB7; border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .error { background: #FCEBEB; border: 0.5px solid #F09595; border-radius: 8px; padding: 0.75rem 1rem; font-size: 13px; color: #791F1F; margin-bottom: 1rem; }
+
+  /* Overview panel */
+  .overview { margin-bottom: 1.5rem; }
+  .overview-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .section-label { font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; color: #888; }
+  .overview-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: 8px; margin-bottom: 1rem; }
+  .stat-card { background: #f5f5f5; border-radius: 8px; padding: 0.75rem 1rem; text-align: center; }
+  .stat-num { font-size: 22px; font-weight: 500; line-height: 1; margin-bottom: 4px; }
+  .stat-label { font-size: 11px; color: #888; }
+  .stat-now .stat-num { color: #791F1F; }
+  .stat-soon .stat-num { color: #633806; }
+  .stat-later .stat-num { color: #0C447C; }
+  .stat-nontask .stat-num { color: #534AB7; }
+
+  /* Item rows in overview */
+  .item-row { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 0.5px solid rgba(0,0,0,0.07); }
+  .item-row:last-child { border-bottom: none; }
+  .item-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
+  .dot-now { background: #E24B4A; }
+  .dot-soon { background: #EF9F27; }
+  .dot-later { background: #378ADD; }
+  .dot-nontask { background: #7F77DD; }
+  .dot-routines { background: #1D9E75; }
+  .item-content { flex: 1; min-width: 0; }
+  .item-name { font-size: 13px; font-weight: 500; line-height: 1.4; }
+  .item-suggested { font-size: 12px; color: #534AB7; margin-top: 2px; font-style: italic; }
+  .item-dest { font-size: 11px; margin-top: 4px; }
+  .item-actions { display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
+  .badge-dest { font-size: 11px; padding: 2px 8px; border-radius: 999px; border: 0.5px solid; display: inline-block; }
+  .dest-now { background: #FCEBEB; color: #791F1F; border-color: #F09595; }
+  .dest-soon { background: #FAEEDA; color: #633806; border-color: #FAC775; }
+  .dest-later { background: #E6F1FB; color: #0C447C; border-color: #85B7EB; }
+  .dest-routines { background: #E1F5EE; color: #085041; border-color: #5DCAA5; }
+  .dest-nontask { background: #EEEDFE; color: #3C3489; border-color: #AFA9EC; }
+
+  /* Step-through panel */
+  .step-panel { display: none; }
+  .step-card { background: #fff; border: 0.5px solid rgba(0,0,0,0.12); border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem; }
+  .step-progress { font-size: 12px; color: #888; margin-bottom: 12px; }
+  .step-progress-bar { height: 3px; background: #f0f0f0; border-radius: 2px; margin-bottom: 16px; overflow: hidden; }
+  .step-progress-fill { height: 100%; background: #534AB7; border-radius: 2px; transition: width 0.3s ease; }
+  .step-task-name { font-size: 16px; font-weight: 500; line-height: 1.4; margin-bottom: 8px; }
+  .step-suggestion { background: #EEEDFE; border: 0.5px solid #AFA9EC; border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 12px; }
+  .step-suggestion-label { font-size: 11px; font-weight: 500; color: #534AB7; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+  .step-suggestion-text { font-size: 13px; color: #3C3489; line-height: 1.5; }
+  .step-rewrite { background: #E1F5EE; border: 0.5px solid #5DCAA5; border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 12px; }
+  .step-rewrite-label { font-size: 11px; font-weight: 500; color: #0F6E56; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+  .step-rewrite-text { font-size: 13px; color: #085041; line-height: 1.5; }
+  .step-dest-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+  .dest-btn { padding: 6px 14px; border-radius: 8px; border: 0.5px solid; font-size: 13px; cursor: pointer; transition: all 0.15s; background: #fff; }
+  .dest-btn:hover { opacity: 0.85; }
+  .dest-btn.active { font-weight: 500; }
+  .dest-btn-now { color: #791F1F; border-color: #F09595; }
+  .dest-btn-now.active { background: #FCEBEB; }
+  .dest-btn-soon { color: #633806; border-color: #FAC775; }
+  .dest-btn-soon.active { background: #FAEEDA; }
+  .dest-btn-later { color: #0C447C; border-color: #85B7EB; }
+  .dest-btn-later.active { background: #E6F1FB; }
+  .dest-btn-routines { color: #085041; border-color: #5DCAA5; }
+  .dest-btn-routines.active { background: #E1F5EE; }
+  .dest-btn-keep { color: #3C3489; border-color: #AFA9EC; }
+  .dest-btn-keep.active { background: #EEEDFE; }
+  .dest-btn-delete { color: #791F1F; border-color: #F09595; }
+  .dest-btn-delete.active { background: #FCEBEB; }
+
+  .step-actions { display: flex; gap: 8px; align-items: center; }
+  .step-skip { font-size: 12px; color: #888; background: none; border: none; cursor: pointer; padding: 6px 0; }
+  .step-skip:hover { color: #111; }
+
+  /* Non-tasks section */
+  .nontask-section { margin-top: 1.5rem; }
+
+  /* Done state */
+  .done-card { background: #E1F5EE; border: 0.5px solid #5DCAA5; border-radius: 12px; padding: 1.25rem; text-align: center; margin-bottom: 1rem; }
+  .done-card h3 { font-size: 15px; font-weight: 500; color: #085041; margin-bottom: 6px; }
+  .done-card p { font-size: 13px; color: #0F6E56; line-height: 1.5; }
+
+  .actions { display: flex; gap: 8px; margin-top: 1rem; flex-wrap: wrap; }
+  .divider { border: none; border-top: 0.5px solid rgba(0,0,0,0.08); margin: 1.25rem 0; }
+
+  .empty-state { font-size: 13px; color: #888; padding: 0.5rem 0; font-style: italic; }
+
+  /* Effort badges */
+  .badge-effort { font-size: 11px; padding: 2px 8px; border-radius: 999px; border: 0.5px solid; display: inline-block; }
+  .effort-quick { background: #E1F5EE; color: #085041; border-color: #5DCAA5; }
+  .effort-scary { background: #FAEEDA; color: #633806; border-color: #FAC775; }
+
+  /* Effort toggle row in step-through */
+  .effort-row { display: flex; gap: 6px; margin-bottom: 12px; align-items: center; }
+  .effort-label-sm { font-size: 12px; color: #888; margin-right: 2px; }
+  .effort-btn { padding: 5px 12px; border-radius: 8px; border: 0.5px solid; font-size: 12px; cursor: pointer; background: #fff; transition: all 0.15s; }
+  .effort-btn:hover { opacity: 0.85; }
+  .effort-btn-quick { color: #085041; border-color: #5DCAA5; }
+  .effort-btn-quick.active { background: #E1F5EE; font-weight: 500; }
+  .effort-btn-scary { color: #633806; border-color: #FAC775; }
+  .effort-btn-scary.active { background: #FAEEDA; font-weight: 500; }
+  .effort-btn-none { color: #888; border-color: rgba(0,0,0,0.2); }
+  .effort-btn-none.active { background: #f5f5f5; font-weight: 500; }
+</style>
+</head>
+<body>
+<h2 class="sr-only">Inbox Triage: AI-powered Todoist inbox sorter. Paste your API token to sort your inbox into projects.</h2>
+
+<div class="header">
+  <div class="logo">
+    <svg viewBox="0 0 24 24"><path d="M21.2 3H2.8A1.8 1.8 0 001 4.8v14.4A1.8 1.8 0 002.8 21h18.4A1.8 1.8 0 0023 19.2V4.8A1.8 1.8 0 0021.2 3zM9.5 16.5l-4-4 1.4-1.4 2.6 2.6 5.6-5.6 1.4 1.4-7 7z"/></svg>
+  </div>
+  <div class="header-text">
+    <h1>Inbox Triage</h1>
+    <p>Sort your brain dump, one item at a time</p>
+  </div>
+</div>
+
+<div id="tokenSection" class="token-section">
+  <div class="token-label">Todoist API token</div>
+  <div class="token-row">
+    <input type="password" id="tokenInput" placeholder="Paste your API token here…" autocomplete="off" />
+    <button class="btn btn-primary" id="fetchBtn">Load inbox ↗</button>
+  </div>
+  <p class="hint">Find yours at <a href="https://todoist.com/prefs/integrations" target="_blank">Todoist → Settings → Integrations</a></p>
+</div>
+
+<div id="statusEl" style="display:none" class="status"><div class="spinner"></div><span id="statusText">Loading…</span></div>
+<div id="errorEl" style="display:none" class="error"></div>
+
+<!-- Overview panel: shown after AI sorts, before step-through -->
+<div id="overviewPanel" style="display:none">
+  <div class="overview">
+    <div class="overview-header">
+      <div class="section-label">Claude's suggestions</div>
+      <span id="overviewCount" style="font-size:12px;color:#888;"></span>
+    </div>
+    <div class="overview-grid">
+      <div class="stat-card stat-now"><div class="stat-num" id="countNow">0</div><div class="stat-label">NOW</div></div>
+      <div class="stat-card stat-soon"><div class="stat-num" id="countSoon">0</div><div class="stat-label">SOON</div></div>
+      <div class="stat-card stat-later"><div class="stat-num" id="countLater">0</div><div class="stat-label">LATER</div></div>
+      <div class="stat-card stat-nontask"><div class="stat-num" id="countNonTask">0</div><div class="stat-label">Not tasks</div></div>
+    </div>
+    <div id="overviewList"></div>
+  </div>
+  <div class="actions">
+    <button class="btn btn-primary" id="startStepBtn">Review one by one ↗</button>
+    <button class="btn" id="resetBtn">Change token</button>
+  </div>
+</div>
+
+<!-- Step-through panel -->
+<div id="stepPanel" class="step-panel">
+  <div class="step-progress-bar"><div class="step-progress-fill" id="progressFill" style="width:0%"></div></div>
+  <div class="step-progress" id="stepProgress">Item 1 of 0</div>
+
+  <div class="step-card">
+    <div class="step-task-name" id="stepTaskName"></div>
+    <div id="stepRewrite" class="step-rewrite" style="display:none">
+      <div class="step-rewrite-label">Suggested rewrite</div>
+      <div class="step-rewrite-text" id="stepRewriteText"></div>
+    </div>
+    <div class="step-suggestion">
+      <div class="step-suggestion-label">Claude's take</div>
+      <div class="step-suggestion-text" id="stepReason"></div>
+    </div>
+    <div class="step-dest-row" id="stepDestRow"></div>
+    <div class="effort-row">
+      <span class="effort-label-sm">Effort:</span>
+      <div id="stepEffortRow"></div>
+    </div>
+    <div class="step-actions">
+      <button class="btn btn-primary btn-sm" id="stepConfirmBtn">Confirm ↗</button>
+      <button class="step-skip" id="stepSkipBtn">Skip for now</button>
+    </div>
+  </div>
+
+  <!-- Non-tasks shown at the end -->
+  <div id="nonTasksStep" style="display:none">
+    <div class="section-label" style="margin-bottom:10px;">Not tasks — keep or delete?</div>
+    <div id="nonTasksList"></div>
+    <div class="actions" style="margin-top:0.75rem;">
+      <button class="btn btn-primary" id="finishBtn">Done ↗</button>
+    </div>
+  </div>
+</div>
+
+<!-- Done state -->
+<div id="donePanel" style="display:none">
+  <div class="done-card">
+    <h3 id="doneTitle">Inbox cleared</h3>
+    <p id="doneSummary"></p>
+  </div>
+  <div class="actions">
+    <button class="btn" id="startOverBtn">Triage again</button>
+  </div>
+</div>
+
+<script>
+let inboxTasks = [];
+let triageResults = [];
+let stepIndex = 0;
+let decisions = [];
+let nonTaskDecisions = [];
+
+const tokenInput = document.getElementById('tokenInput');
+const fetchBtn = document.getElementById('fetchBtn');
+const statusEl = document.getElementById('statusEl');
+const statusText = document.getElementById('statusText');
+const errorEl = document.getElementById('errorEl');
+const overviewPanel = document.getElementById('overviewPanel');
+const stepPanel = document.getElementById('stepPanel');
+const donePanel = document.getElementById('donePanel');
+const tokenSection = document.getElementById('tokenSection');
+
+function showStatus(msg) { statusEl.style.display='flex'; statusText.textContent=msg; errorEl.style.display='none'; }
+function hideStatus() { statusEl.style.display='none'; }
+function showError(msg) { errorEl.textContent=msg; errorEl.style.display='block'; hideStatus(); }
+
+const destColors = { NOW:'dot-now', SOON:'dot-soon', LATER:'dot-later', ROUTINES:'dot-routines', 'NOT_TASK':'dot-nontask' };
+const destBadge = { NOW:'dest-now', SOON:'dest-soon', LATER:'dest-later', ROUTINES:'dest-routines', NOT_TASK:'dest-nontask' };
+const destLabel = { NOW:'NOW', SOON:'SOON', LATER:'LATER', ROUTINES:'ROUTINES', NOT_TASK:'Not a task' };
+
+async function fetchInbox(token) {
+  showStatus('Loading your inbox…');
+  const [tasksRes, projectsRes] = await Promise.all([
+    fetch('https://api.todoist.com/rest/v2/tasks', { headers: { Authorization: `Bearer ${token}` } }),
+    fetch('https://api.todoist.com/rest/v2/projects', { headers: { Authorization: `Bearer ${token}` } })
+  ]);
+  if (!tasksRes.ok) throw new Error(`Todoist error ${tasksRes.status}: check your API token.`);
+  const tasks = await tasksRes.json();
+  const projects = await projectsRes.json();
+  const inboxProject = projects.find(p => p.is_inbox_project);
+  const inboxId = inboxProject ? inboxProject.id : null;
+  return tasks.filter(t => t.project_id === inboxId);
+}
+
+async function runTriage(tasks) {
+  showStatus('Asking Claude to sort your inbox…');
+  const taskList = tasks.map((t, i) => `${i+1}. "${t.content}"`).join('\n');
+
+  const prompt = `You are helping a user with ADHD triage their Todoist inbox. Their inbox is a brain dump — it contains a mix of actual tasks, ideas, reminders, and random notes they wanted to capture.
+
+Their project system:
+- NOW: time-sensitive tasks, should be done soon
+- SOON: somewhat time-sensitive, not urgent
+- LATER: no deadline, do someday (rename mentally: "someday")
+- ROUTINES: recurring tasks with regular schedules
+- Inbox: staging area only — everything here needs sorting
+
+Their effort label system:
+- "quick win": fast and easy, low friction, can be done in under ~15 minutes
+- "big scary": high effort, complex, or emotionally intimidating — the kind of task that's easy to avoid
+- No label: everything in between (normal effort tasks that don't fit either extreme)
+
+Your job: for each inbox item, suggest where it belongs, assess effort, and explain why.
+
+RULES:
+- If it's a clear actionable task: suggest NOW, SOON, or LATER based on implied urgency
+- If it sounds like a recurring habit or routine: suggest ROUTINES
+- If it's a note, idea, reminder, or not clearly actionable: categorize as NOT_TASK (no effort label needed)
+- If the wording is too vague to act on (e.g. "dentist", "mom", "taxes"): suggest a cleaner rewrite that makes it actionable. Keep rewrites short and direct.
+- For effort: only tag "quick win" or "big scary" when it's clearly one or the other. Leave effort null for normal tasks.
+- Be decisive. Every item gets a clear destination.
+
+Here are the inbox items:
+${taskList}
+
+Respond ONLY with a JSON array. No markdown, no preamble, no backticks. Each element:
+{
+  "index": <1-based>,
+  "destination": "NOW" | "SOON" | "LATER" | "ROUTINES" | "NOT_TASK",
+  "effort": "quick win" | "big scary" | null,
+  "reason": "One sentence — why this destination and effort level.",
+  "rewrite": "Suggested cleaner task wording, or null if original is fine."
+}`;
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 2000, messages: [{ role: 'user', content: prompt }] })
+  });
+  if (!res.ok) throw new Error(`Claude API error ${res.status}`);
+  const data = await res.json();
+  const raw = data.content.map(b => b.text || '').join('').trim();
+  return JSON.parse(raw);
+}
+
+function renderOverview(results, tasks) {
+  const counts = { NOW:0, SOON:0, LATER:0, ROUTINES:0, NOT_TASK:0 };
+  results.forEach(r => { if (counts[r.destination] !== undefined) counts[r.destination]++; });
+
+  document.getElementById('countNow').textContent = counts.NOW;
+  document.getElementById('countSoon').textContent = counts.SOON;
+  document.getElementById('countLater').textContent = counts.LATER;
+  document.getElementById('countNonTask').textContent = counts.NOT_TASK;
+  document.getElementById('overviewCount').textContent = `${results.length} items`;
+
+  const list = document.getElementById('overviewList');
+  list.innerHTML = '';
+
+  const taskItems = results.filter(r => r.destination !== 'NOT_TASK');
+  const nonTaskItems = results.filter(r => r.destination === 'NOT_TASK');
+
+  if (taskItems.length === 0 && nonTaskItems.length === 0) {
+    list.innerHTML = '<p class="empty-state">No inbox items found.</p>';
+    return;
+  }
+
+  taskItems.forEach(r => {
+    const task = tasks[r.index - 1];
+    if (!task) return;
+    const effortBadge = r.effort === 'quick win'
+      ? '<span class="badge-effort effort-quick">quick win</span>'
+      : r.effort === 'big scary'
+      ? '<span class="badge-effort effort-scary">big scary</span>'
+      : '';
+    const row = document.createElement('div');
+    row.className = 'item-row';
+    row.innerHTML = `
+      <div class="item-dot ${destColors[r.destination] || 'dot-later'}"></div>
+      <div class="item-content">
+        <div class="item-name">${task.content}</div>
+        ${r.rewrite ? `<div class="item-suggested">→ ${r.rewrite}</div>` : ''}
+        ${effortBadge ? `<div style="margin-top:4px;">${effortBadge}</div>` : ''}
+      </div>
+      <span class="badge-dest ${destBadge[r.destination] || ''}">${destLabel[r.destination] || r.destination}</span>`;
+    list.appendChild(row);
+  });
+
+  if (nonTaskItems.length > 0) {
+    const divider = document.createElement('hr');
+    divider.className = 'divider';
+    list.appendChild(divider);
+    const label = document.createElement('div');
+    label.className = 'section-label';
+    label.style.marginBottom = '8px';
+    label.textContent = 'Not tasks';
+    list.appendChild(label);
+    nonTaskItems.forEach(r => {
+      const task = tasks[r.index - 1];
+      if (!task) return;
+      const row = document.createElement('div');
+      row.className = 'item-row';
+      row.innerHTML = `
+        <div class="item-dot dot-nontask"></div>
+        <div class="item-content">
+          <div class="item-name">${task.content}</div>
+          <div class="item-suggested" style="color:#888;">${r.reason}</div>
+        </div>`;
+      list.appendChild(row);
+    });
+  }
+
+  overviewPanel.style.display = 'block';
+}
+
+function startStepThrough() {
+  overviewPanel.style.display = 'none';
+  stepPanel.style.display = 'block';
+  stepIndex = 0;
+  decisions = triageResults.map(r => ({ ...r, userDest: r.destination, userEffort: r.effort || null, useRewrite: !!r.rewrite, skipped: false }));
+  renderStep();
+}
+
+function getTaskItems() { return decisions.filter(d => d.destination !== 'NOT_TASK'); }
+function getNonTaskItems() { return decisions.filter(d => d.destination === 'NOT_TASK'); }
+
+function renderStep() {
+  const taskItems = getTaskItems();
+  if (stepIndex >= taskItems.length) {
+    showNonTasksStep();
+    return;
+  }
+
+  const item = taskItems[stepIndex];
+  const task = inboxTasks[item.index - 1];
+  const total = taskItems.length;
+  const pct = Math.round((stepIndex / total) * 100);
+
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('stepProgress').textContent = `Task ${stepIndex + 1} of ${total}`;
+  document.getElementById('stepTaskName').textContent = task.content;
+  document.getElementById('stepReason').textContent = item.reason;
+
+  const rewriteEl = document.getElementById('stepRewrite');
+  const rewriteText = document.getElementById('stepRewriteText');
+  if (item.rewrite) {
+    rewriteEl.style.display = 'block';
+    rewriteText.textContent = item.rewrite;
+    rewriteEl.style.cursor = 'pointer';
+    rewriteEl.onclick = () => {
+      item.useRewrite = !item.useRewrite;
+      rewriteEl.style.background = item.useRewrite ? '#E1F5EE' : '#f5f5f5';
+      rewriteEl.style.borderColor = item.useRewrite ? '#5DCAA5' : 'rgba(0,0,0,0.12)';
+      rewriteText.style.color = item.useRewrite ? '#085041' : '#888';
+      document.querySelector('.step-rewrite-label').style.color = item.useRewrite ? '#0F6E56' : '#888';
+      document.querySelector('.step-rewrite-label').textContent = item.useRewrite ? 'Using this rewrite ✓' : 'Suggested rewrite (click to use)';
+    };
+    if (!item.useRewrite) {
+      rewriteEl.style.background = '#f5f5f5';
+      rewriteEl.style.borderColor = 'rgba(0,0,0,0.12)';
+      rewriteText.style.color = '#888';
+      document.querySelector('.step-rewrite-label').style.color = '#888';
+      document.querySelector('.step-rewrite-label').textContent = 'Suggested rewrite (click to use)';
+    } else {
+      rewriteEl.style.background = '#E1F5EE';
+      rewriteEl.style.borderColor = '#5DCAA5';
+      rewriteText.style.color = '#085041';
+      document.querySelector('.step-rewrite-label').style.color = '#0F6E56';
+      document.querySelector('.step-rewrite-label').textContent = 'Using this rewrite ✓';
+    }
+  } else {
+    rewriteEl.style.display = 'none';
+  }
+
+  const destRow = document.getElementById('stepDestRow');
+  destRow.innerHTML = '';
+  ['NOW','SOON','LATER','ROUTINES'].forEach(dest => {
+    const btn = document.createElement('button');
+    btn.className = `dest-btn dest-btn-${dest.toLowerCase()} ${item.userDest === dest ? 'active' : ''}`;
+    btn.textContent = dest;
+    btn.onclick = () => {
+      item.userDest = dest;
+      destRow.querySelectorAll('.dest-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    };
+    destRow.appendChild(btn);
+  });
+
+  const effortRow = document.getElementById('stepEffortRow');
+  effortRow.innerHTML = '';
+  [{ val: 'quick win', cls: 'quick', label: 'Quick win' }, { val: 'big scary', cls: 'scary', label: 'Big scary' }, { val: null, cls: 'none', label: 'Normal' }].forEach(({ val, cls, label }) => {
+    const btn = document.createElement('button');
+    btn.className = `effort-btn effort-btn-${cls} ${item.userEffort === val ? 'active' : ''}`;
+    btn.textContent = label;
+    btn.onclick = () => {
+      item.userEffort = val;
+      effortRow.querySelectorAll('.effort-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    };
+    effortRow.appendChild(btn);
+  });
+}
+
+function showNonTasksStep() {
+  document.getElementById('stepCard') && (document.getElementById('stepCard').style.display = 'none');
+  document.querySelector('.step-card').style.display = 'none';
+  document.getElementById('stepProgress').style.display = 'none';
+  document.getElementById('progressFill').parentElement.style.display = 'none';
+
+  const nonTasks = getNonTaskItems();
+  if (nonTasks.length === 0) {
+    showDone();
+    return;
+  }
+
+  const nonTasksStep = document.getElementById('nonTasksStep');
+  nonTasksStep.style.display = 'block';
+  const list = document.getElementById('nonTasksList');
+  list.innerHTML = '';
+
+  nonTasks.forEach(item => {
+    const task = inboxTasks[item.index - 1];
+    if (!task) return;
+    item.nonTaskAction = 'keep';
+    const row = document.createElement('div');
+    row.className = 'item-row';
+    row.style.alignItems = 'center';
+    row.innerHTML = `
+      <div class="item-dot dot-nontask"></div>
+      <div class="item-content">
+        <div class="item-name">${task.content}</div>
+        <div class="item-suggested" style="color:#888;">${item.reason}</div>
+      </div>
+      <div class="item-actions">
+        <button class="btn btn-sm btn-success keep-btn" data-idx="${item.index}">Keep</button>
+        <button class="btn btn-sm btn-danger del-btn" data-idx="${item.index}">Delete</button>
+      </div>`;
+    list.appendChild(row);
+
+    row.querySelector('.keep-btn').addEventListener('click', function() {
+      item.nonTaskAction = 'keep';
+      this.style.background = '#E1F5EE';
+      row.querySelector('.del-btn').style.background = '#fff';
+    });
+    row.querySelector('.del-btn').addEventListener('click', function() {
+      item.nonTaskAction = 'delete';
+      this.style.background = '#FCEBEB';
+      row.querySelector('.keep-btn').style.background = '#fff';
+    });
+  });
+}
+
+function showDone() {
+  stepPanel.style.display = 'none';
+  overviewPanel.style.display = 'none';
+
+  const taskItems = getTaskItems();
+  const nonTaskItems = getNonTaskItems();
+  const skipped = decisions.filter(d => d.skipped).length;
+  const toDelete = nonTaskItems.filter(d => d.nonTaskAction === 'delete').length;
+  const moved = taskItems.filter(d => !d.skipped).length;
+  const quickWins = taskItems.filter(d => !d.skipped && d.userEffort === 'quick win').length;
+  const bigScarys = taskItems.filter(d => !d.skipped && d.userEffort === 'big scary').length;
+
+  let summary = `${moved} task${moved !== 1 ? 's' : ''} sorted`;
+  if (quickWins > 0) summary += ` (${quickWins} quick win${quickWins !== 1 ? 's' : ''}`;
+  if (bigScarys > 0) summary += quickWins > 0 ? `, ${bigScarys} big scary${bigScarys !== 1 ? 's' : ''})` : ` (${bigScarys} big scary${bigScarys !== 1 ? 's' : ''})`;
+  else if (quickWins > 0) summary += ')';
+  if (toDelete > 0) summary += `, ${toDelete} non-task${toDelete !== 1 ? 's' : ''} deleted`;
+  if (skipped > 0) summary += `, ${skipped} skipped`;
+  summary += '. Your inbox is cleaner.';
+
+  document.getElementById('doneTitle').textContent = moved > 0 ? 'Triage complete' : 'Nothing to sort';
+  document.getElementById('doneSummary').textContent = summary;
+  donePanel.style.display = 'block';
+}
+
+document.getElementById('stepConfirmBtn').addEventListener('click', () => {
+  const taskItems = getTaskItems();
+  if (stepIndex < taskItems.length) {
+    taskItems[stepIndex].skipped = false;
+    stepIndex++;
+    renderStep();
+  }
+});
+
+document.getElementById('stepSkipBtn').addEventListener('click', () => {
+  const taskItems = getTaskItems();
+  if (stepIndex < taskItems.length) {
+    taskItems[stepIndex].skipped = true;
+    stepIndex++;
+    renderStep();
+  }
+});
+
+document.getElementById('finishBtn').addEventListener('click', showDone);
+
+document.getElementById('startStepBtn').addEventListener('click', startStepThrough);
+
+document.getElementById('resetBtn').addEventListener('click', () => {
+  inboxTasks = [];
+  triageResults = [];
+  tokenInput.value = '';
+  overviewPanel.style.display = 'none';
+  stepPanel.style.display = 'none';
+  donePanel.style.display = 'none';
+  tokenSection.style.display = 'block';
+  errorEl.style.display = 'none';
+});
+
+document.getElementById('startOverBtn').addEventListener('click', () => {
+  donePanel.style.display = 'none';
+  tokenSection.style.display = 'block';
+  inboxTasks = [];
+  triageResults = [];
+});
+
+fetchBtn.addEventListener('click', async () => {
+  const token = tokenInput.value.trim();
+  if (!token) { showError('Please enter your Todoist API token.'); return; }
+  try {
+    inboxTasks = await fetchInbox(token);
+    if (inboxTasks.length === 0) {
+      hideStatus();
+      showError('Your inbox is empty — nothing to triage!');
+      return;
+    }
+    triageResults = await runTriage(inboxTasks);
+    hideStatus();
+    tokenSection.style.display = 'none';
+    renderOverview(triageResults, inboxTasks);
+  } catch(e) {
+    hideStatus();
+    showError(e.message || 'Something went wrong. Please try again.');
+  }
+});
+</script>
+</body>
+</html>
